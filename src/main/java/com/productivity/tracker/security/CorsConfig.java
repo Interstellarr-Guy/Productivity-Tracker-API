@@ -16,8 +16,11 @@ public class CorsConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of(
+                "https://productivity-bar-theta.vercel.app",
+                "https://productivity-bar-git-main-avinashs-projects-cb9a1579.vercel.app",
+                "http://localhost:5173"
+        ));
 
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
