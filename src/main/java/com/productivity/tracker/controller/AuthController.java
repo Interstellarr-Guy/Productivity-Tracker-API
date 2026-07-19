@@ -19,6 +19,9 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@RequestBody User user) {
+    	
+    	//debug
+    	System.out.println("REGISTER API HIT");
 
         User savedUser = userService.register(user);
 
