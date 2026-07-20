@@ -19,7 +19,8 @@ public class CorsConfig {
         configuration.setAllowedOrigins(List.of(
                 "https://productivity-bar-theta.vercel.app",
                 "https://productivity-bar-git-main-avinashs-projects-cb9a1579.vercel.app",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "https://productivitybarintt.netlify.app"
         ));
 
         configuration.setAllowedMethods(
