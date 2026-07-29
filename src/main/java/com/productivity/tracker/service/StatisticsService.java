@@ -1,5 +1,6 @@
 package com.productivity.tracker.service;
 
+import com.productivity.tracker.dto.HeatmapDTO;
 import com.productivity.tracker.dto.StatisticsResponse;
 import com.productivity.tracker.dto.WeeklyProductivityDTO;
 import com.productivity.tracker.repository.TaskRepository;
@@ -20,6 +21,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 public class StatisticsService {
@@ -185,6 +188,58 @@ public class StatisticsService {
 
         return weeklyData;
     }
+    
+    //Heat map 
+    public List<HeatmapDTO> getHeatmap() {
+
+        User user = getCurrentUser();
+
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusDays(364);
+
+        List<Task> tasks =
+                taskRepository.findByWorkspaceUserAndCompletedDateBetween(
+                        user,
+                        startDate,
+                        endDate
+                );
+
+        Map<LocalDate, Integer> dailyMinutes = new HashMap<>();
+
+        for (Task task : tasks) {
+
+            if (task.getStatus() != TaskStatus.DONE)
+                continue;
+
+            LocalDate date = task.getCompletedDate();
+
+            int minutes =
+                    task.getWorkedMinutes() == null
+                            ? 0
+                            : task.getWorkedMinutes();
+
+            dailyMinutes.put(
+                    date,
+                    dailyMinutes.getOrDefault(date, 0) + minutes
+            );
+        }
+
+        List<HeatmapDTO> result = new ArrayList<>();
+
+        for (Map.Entry<LocalDate, Integer> entry : dailyMinutes.entrySet()) {
+
+            result.add(
+                    new HeatmapDTO(
+                            entry.getKey(),
+                            entry.getValue()
+                    )
+            );
+        }
+
+        return result;
+    }
+    
+    
     
     
 

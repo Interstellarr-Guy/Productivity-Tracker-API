@@ -4,6 +4,7 @@ import com.productivity.tracker.dto.StatisticsResponse;
 import com.productivity.tracker.dto.WeeklyProductivityDTO;
 import com.productivity.tracker.entity.User;
 import com.productivity.tracker.service.StatisticsService;
+import com.productivity.tracker.dto.HeatmapDTO;
 
 import java.util.List;
 
@@ -30,6 +31,13 @@ public class StatisticsController {
     public List<WeeklyProductivityDTO> getWeeklyProductivity() {
 
         return statisticsService.getWeeklyProductivity();
+
+    }
+    
+    @GetMapping("/heatmap")
+    public List<HeatmapDTO> getHeatmap() {
+
+        return statisticsService.getHeatmap();
 
     }
 

@@ -20,4 +20,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 	        User user,
 	        LocalDate completedDate
 	);
+	
+	List<Task> findByWorkspaceUserAndCompletedDateBetween(
+	        User user,
+	        LocalDate startDate,
+	        LocalDate endDate
+	);
 }
