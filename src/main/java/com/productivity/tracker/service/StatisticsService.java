@@ -1,17 +1,40 @@
 package com.productivity.tracker.service;
 
 import com.productivity.tracker.dto.StatisticsResponse;
+import com.productivity.tracker.dto.WeeklyProductivityDTO;
 import com.productivity.tracker.repository.TaskRepository;
+import com.productivity.tracker.repository.UserRepository;
+
 import java.time.LocalDate;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+
 import com.productivity.tracker.entity.Task;
+import com.productivity.tracker.entity.TaskStatus;
+import com.productivity.tracker.entity.User;
 import com.productivity.tracker.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @Service
 public class StatisticsService {
+	
+	private final UserRepository userRepository;
+	
+	private final TaskRepository taskRepository;
+
+	public StatisticsService(
+	        TaskRepository taskRepository,
+	        UserRepository userRepository) {
+
+	    this.taskRepository = taskRepository;
+	    this.userRepository = userRepository;
+	}
 
 	public StatisticsResponse getStatistics() {
 
@@ -19,7 +42,10 @@ public class StatisticsService {
 
 	    LocalDate today = LocalDate.now();
 
-	    List<Task> tasks = taskRepository.findAll();
+	    User user = getCurrentUser();
+
+	    List<Task> tasks =
+	            taskRepository.findByWorkspaceUser(user);
 
 	    // Today Minutes
 	    int todayMinutes = tasks.stream()
@@ -112,10 +138,54 @@ public class StatisticsService {
 	    return response;
 	}
 	
-    private final TaskRepository taskRepository;
+     //Helper method
+	private User getCurrentUser() {
 
-    public StatisticsService(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
+	    Authentication authentication =
+	            SecurityContextHolder.getContext().getAuthentication();
+
+	    return userRepository.findByEmail(authentication.getName())
+	            .orElseThrow(() -> new RuntimeException("User not found"));
+	}
+    
+    
+    
+    //Weekly productivity
+    public List<WeeklyProductivityDTO> getWeeklyProductivity() {
+    	User user = getCurrentUser();
+    	
+        LocalDate today = LocalDate.now();
+
+        LocalDate startOfWeek = today.minusDays(6);
+
+        List<WeeklyProductivityDTO> weeklyData = new ArrayList<>();
+
+        for (int i = 0; i < 7; i++) {
+
+            LocalDate currentDay = startOfWeek.plusDays(i);
+
+            int totalMinutes = taskRepository
+                    .findByWorkspaceUserAndCompletedDate(user, currentDay)
+                    .stream()
+                    .filter(task -> task.getStatus() == TaskStatus.DONE)
+                    .mapToInt(task ->
+                            task.getWorkedMinutes() == null
+                                    ? 0
+                                    : task.getWorkedMinutes())
+                    .sum();
+
+            String dayName = currentDay
+                    .getDayOfWeek()
+                    .getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+
+            weeklyData.add(
+                    new WeeklyProductivityDTO(dayName, totalMinutes)
+            );
+        }
+
+        return weeklyData;
     }
+    
+    
 
 }
