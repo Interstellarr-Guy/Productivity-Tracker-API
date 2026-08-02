@@ -3,6 +3,7 @@ package com.productivity.tracker.service;
 import com.productivity.tracker.dto.HeatmapDTO;
 import com.productivity.tracker.dto.StatisticsResponse;
 import com.productivity.tracker.dto.WeeklyProductivityDTO;
+import com.productivity.tracker.repository.TaskCompletionRepository;
 import com.productivity.tracker.repository.TaskRepository;
 import com.productivity.tracker.repository.UserRepository;
 
@@ -16,6 +17,7 @@ import com.productivity.tracker.entity.Task;
 import com.productivity.tracker.entity.TaskStatus;
 import com.productivity.tracker.entity.User;
 import com.productivity.tracker.repository.TaskRepository;
+import com.productivity.tracker.entity.TaskCompletion;
 import org.springframework.stereotype.Service;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,12 +32,16 @@ public class StatisticsService {
 	private final UserRepository userRepository;
 	
 	private final TaskRepository taskRepository;
+	
+	private final TaskCompletionRepository taskCompletionRepository;
 
 	public StatisticsService(
 	        TaskRepository taskRepository,
+	        TaskCompletionRepository taskCompletionRepository,
 	        UserRepository userRepository) {
 
 	    this.taskRepository = taskRepository;
+	    this.taskCompletionRepository = taskCompletionRepository;
 	    this.userRepository = userRepository;
 	}
 
@@ -47,17 +53,25 @@ public class StatisticsService {
 
 	    User user = getCurrentUser();
 
-	    List<Task> tasks =
-	            taskRepository.findByWorkspaceUser(user);
+//	    List<Task> tasks =
+//	            taskRepository.findByWorkspaceUser(user);
+	    List<TaskCompletion> completions =
+	            taskCompletionRepository.findAll()
+	                    .stream()
+	                    .filter(c ->
+	                            c.getTask()
+	                             .getWorkspace()
+	                             .getUser()
+	                             .getId()
+	                             .equals(user.getId()))
+	                    .toList();
 
 	    // Today Minutes
-	    int todayMinutes = tasks.stream()
+	    int todayMinutes = completions.stream()
 
-	            .filter(task -> task.getCompletedDate() != null)
+	            .filter(c -> c.getCompletedDate().equals(today))
 
-	            .filter(task -> task.getCompletedDate().equals(today))
-
-	            .mapToInt(Task::getWorkedMinutes)
+	            .mapToInt(TaskCompletion::getWorkedMinutes)
 
 	            .sum();
 
@@ -67,16 +81,14 @@ public class StatisticsService {
 	    LocalDate startOfWeek =
 	            today.with(java.time.DayOfWeek.MONDAY);
 
-	    int weekMinutes = tasks.stream()
+	    int weekMinutes = completions.stream()
 
-	            .filter(task -> task.getCompletedDate() != null)
-
-	            .filter(task ->
-	                    !task.getCompletedDate().isBefore(startOfWeek)
-	                            && !task.getCompletedDate().isAfter(today)
+	            .filter(c ->
+	                    !c.getCompletedDate().isBefore(startOfWeek)
+	                            && !c.getCompletedDate().isAfter(today)
 	            )
 
-	            .mapToInt(Task::getWorkedMinutes)
+	            .mapToInt(TaskCompletion::getWorkedMinutes)
 
 	            .sum();
 
@@ -85,42 +97,51 @@ public class StatisticsService {
 	    //Month Minutes
 	    LocalDate firstDayOfMonth = today.withDayOfMonth(1);
 
-	    int monthMinutes = tasks.stream()
+	    int monthMinutes = completions.stream()
 
-	            .filter(task -> task.getCompletedDate() != null)
-
-	            .filter(task ->
-	                    !task.getCompletedDate().isBefore(firstDayOfMonth)
-	                            && !task.getCompletedDate().isAfter(today)
+	            .filter(c ->
+	                    !c.getCompletedDate().isBefore(firstDayOfMonth)
+	                            && !c.getCompletedDate().isAfter(today)
 	            )
 
-	            .mapToInt(Task::getWorkedMinutes)
+	            .mapToInt(TaskCompletion::getWorkedMinutes)
 
 	            .sum();
 
 	    response.setMonthMinutes(monthMinutes);
 	    
-	    //Completed Tasks
-	    long completedTasks = tasks.stream()
 
-	            .filter(task -> task.getStatus() != null)
+	 // Completed Tasks
+	    int completedTasks = completions.size();
 
-	            .filter(task -> task.getStatus().name().equals("DONE"))
-
-	            .count();
-
-	    response.setCompletedTasks((int) completedTasks);
+	    response.setCompletedTasks(completedTasks);
 	    
-	    //Completed Days
-	    Set<LocalDate> completedDays = tasks.stream()
+//	    long completedTasks = tasks.stream()
+//
+//	            .filter(task -> task.getStatus() != null)
+//
+//	            .filter(task -> task.getStatus().name().equals("DONE"))
+//
+//	            .count();
+//
+//	    response.setCompletedTasks((int) completedTasks);
+//	    
+//	    //Completed Days
+	    Set<LocalDate> completedDays = completions.stream()
 
-	            .filter(task -> task.getCompletedDate() != null)
-
-	            .filter(task -> task.getWorkedMinutes() > 0)
-
-	            .map(Task::getCompletedDate)
+	            .map(TaskCompletion::getCompletedDate)
 
 	            .collect(Collectors.toSet());
+	    
+//	    Set<LocalDate> completedDays = tasks.stream()
+//
+//	            .filter(task -> task.getCompletedDate() != null)
+//
+//	            .filter(task -> task.getWorkedMinutes() > 0)
+//
+//	            .map(Task::getCompletedDate)
+//
+//	            .collect(Collectors.toSet());
 	    
 	    //consecutive days
 	    int streak = 0;
@@ -167,14 +188,16 @@ public class StatisticsService {
 
             LocalDate currentDay = startOfWeek.plusDays(i);
 
-            int totalMinutes = taskRepository
-                    .findByWorkspaceUserAndCompletedDate(user, currentDay)
+            int totalMinutes = taskCompletionRepository.findAll()
                     .stream()
-                    .filter(task -> task.getStatus() == TaskStatus.DONE)
-                    .mapToInt(task ->
-                            task.getWorkedMinutes() == null
-                                    ? 0
-                                    : task.getWorkedMinutes())
+                    .filter(c ->
+                            c.getTask()
+                             .getWorkspace()
+                             .getUser()
+                             .getId()
+                             .equals(user.getId()))
+                    .filter(c -> c.getCompletedDate().equals(currentDay))
+                    .mapToInt(TaskCompletion::getWorkedMinutes)
                     .sum();
 
             String dayName = currentDay
@@ -197,26 +220,27 @@ public class StatisticsService {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusDays(364);
 
-        List<Task> tasks =
-                taskRepository.findByWorkspaceUserAndCompletedDateBetween(
-                        user,
-                        startDate,
-                        endDate
-                );
+        List<TaskCompletion> completions =
+                taskCompletionRepository.findAll()
+                        .stream()
+                        .filter(c ->
+                                c.getTask()
+                                 .getWorkspace()
+                                 .getUser()
+                                 .getId()
+                                 .equals(user.getId()))
+                        .filter(c ->
+                                !c.getCompletedDate().isBefore(startDate)
+                                        && !c.getCompletedDate().isAfter(endDate))
+                        .toList();
 
         Map<LocalDate, Integer> dailyMinutes = new HashMap<>();
 
-        for (Task task : tasks) {
+        for (TaskCompletion completion : completions) {
 
-            if (task.getStatus() != TaskStatus.DONE)
-                continue;
+            LocalDate date = completion.getCompletedDate();
 
-            LocalDate date = task.getCompletedDate();
-
-            int minutes =
-                    task.getWorkedMinutes() == null
-                            ? 0
-                            : task.getWorkedMinutes();
+            int minutes = completion.getWorkedMinutes();
 
             dailyMinutes.put(
                     date,

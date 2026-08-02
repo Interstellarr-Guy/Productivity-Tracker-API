@@ -2,6 +2,7 @@ package com.productivity.tracker.dto;
 
 import java.time.LocalDate;
 
+import com.productivity.tracker.entity.RepeatType;
 import com.productivity.tracker.entity.TaskPriority;
 import com.productivity.tracker.entity.TaskStatus;
 
@@ -21,7 +22,17 @@ public class TaskRequest {
 
     private LocalDate completedDate;
     
-    public LocalDate getCompletedDate() {
+    private RepeatType repeatType;
+    
+    public RepeatType getRepeatType() {
+		return repeatType;
+	}
+
+	public void setRepeatType(RepeatType repeatType) {
+		this.repeatType = repeatType;
+	}
+
+	public LocalDate getCompletedDate() {
 		return completedDate;
 	}
 

@@ -31,7 +31,24 @@ public class Task {
     
     private LocalDate completedDate;
     
-    public LocalDate getCompletedDate() {
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RepeatType repeatType = RepeatType.NONE;
+    
+    public RepeatType getRepeatType() {
+		return repeatType;
+	}
+
+
+
+	public void setRepeatType(RepeatType repeatType) {
+		this.repeatType = repeatType;
+	}
+
+
+
+	public LocalDate getCompletedDate() {
 		return completedDate;
 	}
 

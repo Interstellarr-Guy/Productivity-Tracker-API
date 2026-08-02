@@ -1,5 +1,6 @@
 package com.productivity.tracker.controller;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,8 +9,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import com.productivity.tracker.dto.TaskCompletionRequest;
+import com.productivity.tracker.dto.TaskCompletionResponse;
 import com.productivity.tracker.dto.TaskRequest;
 import com.productivity.tracker.entity.Task;
+import com.productivity.tracker.entity.TaskCompletion;
 import com.productivity.tracker.service.TaskService;
 import com.productivity.tracker.dto.TaskResponse;
 import com.productivity.tracker.dto.TaskStatusRequest;
@@ -85,4 +89,51 @@ public class TaskController {
 
         return ResponseEntity.ok("Task deleted successfully");
     }
+    
+    //Complete Task 2-August
+    
+    @PostMapping("/tasks/{taskId}/complete")
+    public ResponseEntity<?> completeTask(
+            @PathVariable Long taskId,
+            @RequestBody TaskCompletionRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        taskService.recordCompletion(
+                taskId,
+                request,
+                userDetails
+                
+        ) ;
+
+        return ResponseEntity.ok().build();
+    }
+    
+    //temporary controller
+    @GetMapping("/completions")
+    public ResponseEntity<List<TaskCompletionResponse>> getCompletions(
+            @RequestParam String date,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        return ResponseEntity.ok(
+                taskService.getCompletionsForDate(
+                        LocalDate.parse(date),
+                        userDetails
+                )
+        );
+    }
+    
+    // completion + all
+    @GetMapping("/completions/all")
+    public ResponseEntity<List<TaskCompletionResponse>> getAllCompletions(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+
+        return ResponseEntity.ok(
+                taskService.getAllCompletions(userDetails)
+        );
+
+    }
+   
 } 

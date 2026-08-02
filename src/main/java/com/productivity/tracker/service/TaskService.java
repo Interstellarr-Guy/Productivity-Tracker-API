@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.productivity.tracker.repository.ProductivityWorkspaceRepository;
+import com.productivity.tracker.repository.TaskCompletionRepository;
 import com.productivity.tracker.repository.TaskRepository;
 import com.productivity.tracker.repository.UserRepository;
 
@@ -13,11 +14,15 @@ import java.util.List;
 
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.productivity.tracker.dto.TaskCompletionRequest;
+import com.productivity.tracker.dto.TaskCompletionResponse;
 import com.productivity.tracker.dto.TaskRequest;
 import com.productivity.tracker.dto.TaskResponse;
 import com.productivity.tracker.dto.TaskStatusRequest;
 import com.productivity.tracker.entity.ProductivityWorkspace;
+import com.productivity.tracker.entity.RepeatType;
 import com.productivity.tracker.entity.Task;
+import com.productivity.tracker.entity.TaskCompletion;
 import com.productivity.tracker.entity.TaskStatus;
 import com.productivity.tracker.entity.User;
 
@@ -35,7 +40,10 @@ public class TaskService {
     @Autowired
     private UserRepository userRepository;
     
-    public TaskResponse createTask(Long workspaceId,  //edited
+    @Autowired
+    private  TaskCompletionRepository taskCompletionRepository;
+    
+    public TaskResponse createTask(Long workspaceId, 
             TaskRequest request,
             UserDetails userDetails) {
 
@@ -59,7 +67,7 @@ public class TaskService {
       task.setDueDate(request.getDueDate());
       task.setCreatedAt(LocalDateTime.now());
       task.setWorkspace(workspace);
-      
+      task.setRepeatType(request.getRepeatType());
       
 
       // for debug
@@ -102,6 +110,9 @@ public class TaskService {
     if (!workspace.getUser().getId().equals(user.getId())) {
     throw new RuntimeException("You are not allowed to view these tasks");
     }
+    
+    //for now no need
+   // resetDailyTasks(workspace);
     
     // for Debug
     List<Task> tasks = taskRepository.findByWorkspace(workspace);
@@ -172,9 +183,7 @@ public class TaskService {
     	task.setCompletedDate(request.getCompletedDate());
 
     	return taskRepository.save(task);
-    
-    
-}
+    }
     
     //Task Status
     public TaskResponse updateTaskStatus(Long taskId,
@@ -242,5 +251,133 @@ public class TaskService {
         return response;
     }
     
+    //Record completion
+    public void recordCompletion(
+            Long taskId,
+            TaskCompletionRequest request,
+            UserDetails userDetails
+    ) {
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() ->
+                        new RuntimeException("Task not found"));
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        if (!task.getWorkspace().getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("You are not allowed to update this task");
+        }
+
+     // Task completion...
+        TaskCompletion completion = new TaskCompletion();
+
+        completion.setTask(task);
+        completion.setWorkedMinutes(request.getWorkedMinutes());
+        completion.setCompletedDate(request.getCompletedDate());
+
+        taskCompletionRepository.save(completion);
+
+     // always keep lifetime minutes updated
+        task.setWorkedMinutes(
+                task.getWorkedMinutes() + request.getWorkedMinutes()
+        );
+
+        // only NORMAL one-time tasks become DONE
+        if (task.getRepeatType() == RepeatType.NONE) {
+
+            task.setCompletedDate(request.getCompletedDate());
+            task.setStatus(TaskStatus.DONE);
+
+        }
+
+        // save changes
+        taskRepository.save(task);
+
+       
+        System.out.println("===== RECORD COMPLETION =====");
+    }
+    
+    // Get completed Data
+    public List<TaskCompletionResponse> getCompletionsForDate(
+            LocalDate date,
+            UserDetails userDetails
+    ) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        List<TaskCompletion> completions =
+                taskCompletionRepository.findByCompletedDate(date);
+
+//        return completions.stream()
+//                .filter(c ->
+//                        c.getTask()
+//                         .getWorkspace()
+//                         .getUser()
+//                         .getId()
+//                         .equals(user.getId()))
+//                .toList();
+        
+        return completions.stream()
+                .filter(c ->
+                        c.getTask()
+                         .getWorkspace()
+                         .getUser()
+                         .getId()
+                         .equals(user.getId()))
+                .map(c -> {
+
+                    TaskCompletionResponse dto =
+                            new TaskCompletionResponse();
+
+                    dto.setTaskId(c.getTask().getId());
+                    dto.setTaskTitle(c.getTask().getTitle());
+                    dto.setWorkedMinutes(c.getWorkedMinutes());
+                    dto.setCompletedDate(c.getCompletedDate());
+
+                    return dto;
+
+                })
+                .toList();
+        
+    }
+    
+       // Get All Completions
+    public List<TaskCompletionResponse> getAllCompletions(
+            UserDetails userDetails
+    ) {
+
+        User user = userRepository.findByEmail(userDetails.getUsername())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        return taskCompletionRepository.findAll()
+                .stream()
+                .filter(c ->
+                        c.getTask()
+                         .getWorkspace()
+                         .getUser()
+                         .getId()
+                         .equals(user.getId()))
+                .map(c -> {
+
+                    TaskCompletionResponse dto =
+                            new TaskCompletionResponse();
+
+                    dto.setTaskId(c.getTask().getId());
+                    dto.setTaskTitle(c.getTask().getTitle());
+                    dto.setWorkedMinutes(c.getWorkedMinutes());
+                    dto.setCompletedDate(c.getCompletedDate());
+
+                    return dto;
+
+                })
+                .toList();
+
+    }
+
 
 }
