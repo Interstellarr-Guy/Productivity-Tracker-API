@@ -30,6 +30,18 @@ public class StatisticsController {
     @GetMapping("/weekly")
     public List<WeeklyProductivityDTO> getWeeklyProductivity() {
 
+    	// Debug 04-10
+    	 long start = System.currentTimeMillis();
+
+    	    var result = statisticsService.getWeeklyProductivity();
+
+    	    long end = System.currentTimeMillis();
+
+    	    System.out.println(result);
+    	    System.out.println(start);
+    	    System.out.println(end);
+    	   // log.info("CONTROLLER /api/statistics/weekly took {} ms",
+    	   //         end - start);
         return statisticsService.getWeeklyProductivity();
 
     }
