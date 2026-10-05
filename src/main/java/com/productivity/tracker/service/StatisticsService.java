@@ -327,55 +327,116 @@ public class StatisticsService {
 	}
     
     //Heat map 
-    public List<HeatmapDTO> getHeatmap() {
+	public List<HeatmapDTO> getHeatmap() {
 
-        User user = getCurrentUser();
+	    long serviceStart = System.currentTimeMillis();
 
-        LocalDate endDate = LocalDate.now();
-        LocalDate startDate = endDate.minusDays(364);
 
-        List<TaskCompletion> completions =
-                taskCompletionRepository.findAll()
-                        .stream()
-                        .filter(c ->
-                                c.getTask()
-                                 .getWorkspace()
-                                 .getUser()
-                                 .getId()
-                                 .equals(user.getId()))
-                        .filter(c ->
-                                !c.getCompletedDate().isBefore(startDate)
-                                        && !c.getCompletedDate().isAfter(endDate))
-                        .toList();
+	    // GET CURRENT USER
 
-        Map<LocalDate, Integer> dailyMinutes = new HashMap<>();
 
-        for (TaskCompletion completion : completions) {
+	    long userStart = System.currentTimeMillis();
 
-            LocalDate date = completion.getCompletedDate();
+	    User user = getCurrentUser();
 
-            int minutes = completion.getWorkedMinutes();
+	    log.info(
+	            "PERFORMANCE HEATMAP - Get current user took {} ms",
+	            System.currentTimeMillis() - userStart
+	    );
 
-            dailyMinutes.put(
-                    date,
-                    dailyMinutes.getOrDefault(date, 0) + minutes
-            );
-        }
 
-        List<HeatmapDTO> result = new ArrayList<>();
+	    // DATE RANGE - LAST 365 DAYS
 
-        for (Map.Entry<LocalDate, Integer> entry : dailyMinutes.entrySet()) {
 
-            result.add(
-                    new HeatmapDTO(
-                            entry.getKey(),
-                            entry.getValue()
-                    )
-            );
-        }
+	    LocalDate endDate = LocalDate.now();
+	    LocalDate startDate = endDate.minusDays(364);
 
-        return result;
-    }
+
+	    // DATABASE QUERY
+
+
+	    long dbStart = System.currentTimeMillis();
+
+	    List<TaskCompletion> completions =
+	            taskCompletionRepository
+	                    .findByTask_Workspace_User_IdAndCompletedDateBetween(
+	                            user.getId(),
+	                            startDate,
+	                            endDate
+	                    );
+
+	    log.info(
+	            "PERFORMANCE HEATMAP - Optimized DB query took {} ms - {} records returned",
+	            System.currentTimeMillis() - dbStart,
+	            completions.size()
+	    );
+
+
+	    // GROUP MINUTES BY DATE
+	    
+
+	    long groupingStart = System.currentTimeMillis();
+
+	    Map<LocalDate, Integer> dailyMinutes =
+	            new HashMap<>();
+
+	    for (TaskCompletion completion : completions) {
+
+	        LocalDate date =
+	                completion.getCompletedDate();
+
+	        int minutes =
+	                completion.getWorkedMinutes();
+
+	        dailyMinutes.put(
+	                date,
+	                dailyMinutes.getOrDefault(date, 0)
+	                        + minutes
+	        );
+	    }
+
+	    log.info(
+	            "PERFORMANCE HEATMAP - Grouping took {} ms",
+	            System.currentTimeMillis() - groupingStart
+	    );
+
+
+	    // CREATE DTO RESPONSE
+	
+
+	    long dtoStart = System.currentTimeMillis();
+
+	    List<HeatmapDTO> result =
+	            new ArrayList<>();
+
+	    for (Map.Entry<LocalDate, Integer> entry
+	            : dailyMinutes.entrySet()) {
+
+	        result.add(
+	                new HeatmapDTO(
+	                        entry.getKey(),
+	                        entry.getValue()
+	                )
+	        );
+	    }
+
+	    log.info(
+	            "PERFORMANCE HEATMAP - DTO creation took {} ms",
+	            System.currentTimeMillis() - dtoStart
+	    );
+
+
+	    // TOTAL
+	   
+
+	    log.info(
+	            "PERFORMANCE HEATMAP - TOTAL getHeatmap() took {} ms",
+	            System.currentTimeMillis() - serviceStart
+	    );
+
+
+	    return result;
+	}
     
     
     
