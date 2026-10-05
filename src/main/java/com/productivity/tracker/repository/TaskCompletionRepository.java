@@ -23,4 +23,12 @@ public interface TaskCompletionRepository
             Task task,
             LocalDate completedDate
     );
+    
+    //Optimized query for weekly statistics
+    
+    List<TaskCompletion> findByTask_Workspace_User_IdAndCompletedDateBetween(
+            Long userId,
+            LocalDate startDate,
+            LocalDate endDate
+    );
 }

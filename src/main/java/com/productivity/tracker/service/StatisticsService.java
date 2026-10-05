@@ -240,38 +240,49 @@ public class StatisticsService {
 
 	    long dbStart = System.currentTimeMillis();
 
-	    List<TaskCompletion> allCompletions =
-	            taskCompletionRepository.findAll();
+//	    List<TaskCompletion> allCompletions =
+//	            taskCompletionRepository.findAll();
 
+	    List<TaskCompletion> completions =
+	            taskCompletionRepository
+	                    .findByTask_Workspace_User_IdAndCompletedDateBetween(
+	                            user.getId(),
+	                            startOfWeek,
+	                            today
+	                    );
+	    
 	    log.info(
-	            "PERFORMANCE - DB findAll() ONCE took {} ms - {} records returned",
+	            "PERFORMANCE -Optimized weekly DB query took {} ms - {} records returned",
 	            System.currentTimeMillis() - dbStart,
-	            allCompletions.size()
+	            completions.size()
 	    );
 
 	    // FILTER CURRENT USER ONCE
 	 
+//
+//	    long filterStart = System.currentTimeMillis();
+//
+//	    List<TaskCompletion> userCompletions =
+//	            allCompletions.stream()
+//	                    .filter(c ->
+//	                            c.getTask()
+//	                             .getWorkspace()
+//	                             .getUser()
+//	                             .getId()
+//	                             .equals(user.getId()))
+//	                    .toList();
+//
+//	    log.info(
+//	            "PERFORMANCE - User filtering took {} ms - {} records",
+//	            System.currentTimeMillis() - filterStart,
+//	            userCompletions.size()
+//	    );
 
-	    long filterStart = System.currentTimeMillis();
-
-	    List<TaskCompletion> userCompletions =
-	            allCompletions.stream()
-	                    .filter(c ->
-	                            c.getTask()
-	                             .getWorkspace()
-	                             .getUser()
-	                             .getId()
-	                             .equals(user.getId()))
-	                    .toList();
-
-	    log.info(
-	            "PERFORMANCE - User filtering took {} ms - {} records",
-	            System.currentTimeMillis() - filterStart,
-	            userCompletions.size()
-	    );
-
-	    // CREATE WEEKLY RESULT
+	    // Build weekly response
 	   
+
+	    long calculationStart =
+	            System.currentTimeMillis();
 
 	    List<WeeklyProductivityDTO> weeklyData =
 	            new ArrayList<>();
@@ -282,30 +293,19 @@ public class StatisticsService {
 	        LocalDate currentDay =
 	                startOfWeek.plusDays(i);
 
-	        long calculationStart =
-	                System.currentTimeMillis();
-
 
 	        int totalMinutes =
-	                userCompletions.stream()
+	                completions.stream()
 
 	                        .filter(c ->
 	                                c.getCompletedDate()
-	                                 .equals(currentDay))
+	                                        .equals(currentDay))
 
 	                        .mapToInt(
 	                                TaskCompletion::getWorkedMinutes
 	                        )
 
 	                        .sum();
-
-
-	        log.info(
-	                "PERFORMANCE - Calculation for {} took {} ms",
-	                currentDay,
-	                System.currentTimeMillis()
-	                        - calculationStart
-	        );
 
 
 	        String dayName =
@@ -326,6 +326,14 @@ public class StatisticsService {
 	    }
 
 
+	    log.info(
+	            "PERFORMANCE - Weekly calculation took {} ms",
+	            System.currentTimeMillis() - calculationStart
+	    );
+
+
+	    // Total
+	    
 	    log.info(
 	            "PERFORMANCE - TOTAL optimized getWeeklyProductivity() took {} ms",
 	            System.currentTimeMillis() - serviceStart
