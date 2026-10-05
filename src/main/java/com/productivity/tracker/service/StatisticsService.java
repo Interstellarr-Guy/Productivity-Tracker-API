@@ -215,77 +215,107 @@ public class StatisticsService {
 //
 //        return weeklyData;
 //    }
+	
 	// Weekly productivity
 	public List<WeeklyProductivityDTO> getWeeklyProductivity() {
 
 	    long serviceStart = System.currentTimeMillis();
 
-	    // 1. GET CURRENT USER
-	   
+	    // Get current user
 	    long userStart = System.currentTimeMillis();
 
 	    User user = getCurrentUser();
 
-	    log.info("PERFORMANCE - Get current user took {} ms",
-	            System.currentTimeMillis() - userStart);
+	    log.info(
+	            "PERFORMANCE - Get current user took {} ms",
+	            System.currentTimeMillis() - userStart
+	    );
 
 
 	    LocalDate today = LocalDate.now();
 	    LocalDate startOfWeek = today.minusDays(6);
 
-	    List<WeeklyProductivityDTO> weeklyData = new ArrayList<>();
+	    // DATABASE - CALL ONLY ONCE
+	  
 
-	    // 2. PROCESS EACH DAY
+	    long dbStart = System.currentTimeMillis();
+
+	    List<TaskCompletion> allCompletions =
+	            taskCompletionRepository.findAll();
+
+	    log.info(
+	            "PERFORMANCE - DB findAll() ONCE took {} ms - {} records returned",
+	            System.currentTimeMillis() - dbStart,
+	            allCompletions.size()
+	    );
+
+	    // FILTER CURRENT USER ONCE
+	 
+
+	    long filterStart = System.currentTimeMillis();
+
+	    List<TaskCompletion> userCompletions =
+	            allCompletions.stream()
+	                    .filter(c ->
+	                            c.getTask()
+	                             .getWorkspace()
+	                             .getUser()
+	                             .getId()
+	                             .equals(user.getId()))
+	                    .toList();
+
+	    log.info(
+	            "PERFORMANCE - User filtering took {} ms - {} records",
+	            System.currentTimeMillis() - filterStart,
+	            userCompletions.size()
+	    );
+
+	    // CREATE WEEKLY RESULT
 	   
+
+	    List<WeeklyProductivityDTO> weeklyData =
+	            new ArrayList<>();
+
+
 	    for (int i = 0; i < 7; i++) {
 
-	        LocalDate currentDay = startOfWeek.plusDays(i);
+	        LocalDate currentDay =
+	                startOfWeek.plusDays(i);
 
-	        // Measure findAll() separately
-	        long dbStart = System.currentTimeMillis();
+	        long calculationStart =
+	                System.currentTimeMillis();
 
-	        List<TaskCompletion> allCompletions =
-	                taskCompletionRepository.findAll();
 
-	        long dbTime = System.currentTimeMillis() - dbStart;
+	        int totalMinutes =
+	                userCompletions.stream()
+
+	                        .filter(c ->
+	                                c.getCompletedDate()
+	                                 .equals(currentDay))
+
+	                        .mapToInt(
+	                                TaskCompletion::getWorkedMinutes
+	                        )
+
+	                        .sum();
+
 
 	        log.info(
-	                "PERFORMANCE - DB findAll() for {} took {} ms - {} records returned",
+	                "PERFORMANCE - Calculation for {} took {} ms",
 	                currentDay,
-	                dbTime,
-	                allCompletions.size()
+	                System.currentTimeMillis()
+	                        - calculationStart
 	        );
 
 
-	        // Measure Java filtering/calculation separately
-	        long processingStart = System.currentTimeMillis();
+	        String dayName =
+	                currentDay
+	                        .getDayOfWeek()
+	                        .getDisplayName(
+	                                TextStyle.SHORT,
+	                                Locale.ENGLISH
+	                        );
 
-	        int totalMinutes = allCompletions
-	                .stream()
-	                .filter(c ->
-	                        c.getTask()
-	                         .getWorkspace()
-	                         .getUser()
-	                         .getId()
-	                         .equals(user.getId()))
-	                .filter(c ->
-	                        c.getCompletedDate().equals(currentDay))
-	                .mapToInt(TaskCompletion::getWorkedMinutes)
-	                .sum();
-
-	        log.info(
-	                "PERFORMANCE - Java filtering for {} took {} ms",
-	                currentDay,
-	                System.currentTimeMillis() - processingStart
-	        );
-
-
-	        String dayName = currentDay
-	                .getDayOfWeek()
-	                .getDisplayName(
-	                        TextStyle.SHORT,
-	                        Locale.ENGLISH
-	                );
 
 	        weeklyData.add(
 	                new WeeklyProductivityDTO(
@@ -295,12 +325,12 @@ public class StatisticsService {
 	        );
 	    }
 
-	    // 3. TOTAL SERVICE TIME
-	   
+
 	    log.info(
-	            "PERFORMANCE - TOTAL getWeeklyProductivity() took {} ms",
+	            "PERFORMANCE - TOTAL optimized getWeeklyProductivity() took {} ms",
 	            System.currentTimeMillis() - serviceStart
 	    );
+
 
 	    return weeklyData;
 	}
