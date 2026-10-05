@@ -120,15 +120,7 @@ public class StatisticsService {
 
 	    response.setCompletedTasks(completedTasks);
 	    
-//	    long completedTasks = tasks.stream()
-//
-//	            .filter(task -> task.getStatus() != null)
-//
-//	            .filter(task -> task.getStatus().name().equals("DONE"))
-//
-//	            .count();
-//
-//	    response.setCompletedTasks((int) completedTasks);
+//	
 //	    
 //	    //Completed Days
 	    Set<LocalDate> completedDays = completions.stream()
@@ -136,16 +128,7 @@ public class StatisticsService {
 	            .map(TaskCompletion::getCompletedDate)
 
 	            .collect(Collectors.toSet());
-	    
-//	    Set<LocalDate> completedDays = tasks.stream()
-//
-//	            .filter(task -> task.getCompletedDate() != null)
-//
-//	            .filter(task -> task.getWorkedMinutes() > 0)
-//
-//	            .map(Task::getCompletedDate)
-//
-//	            .collect(Collectors.toSet());
+
 	    
 	    //consecutive days
 	    int streak = 0;
