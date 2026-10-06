@@ -6,6 +6,7 @@ import com.productivity.tracker.entity.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.productivity.tracker.entity.TaskCompletion;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 public interface TaskCompletionRepository
         extends JpaRepository<TaskCompletion, Long> {
@@ -24,6 +25,7 @@ public interface TaskCompletionRepository
             LocalDate completedDate
     );
     
+    @EntityGraph(attributePaths = {"task"})
     List<TaskCompletion> findByTask_Workspace_User_Id(
             Long userId
     );
