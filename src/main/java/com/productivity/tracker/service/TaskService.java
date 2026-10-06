@@ -86,58 +86,159 @@ public class TaskService {
 //
 //      return saved;
       
-      System.out.println("===== CREATE TASK =====");
+      //System.out.println("===== CREATE TASK =====");
 
-      System.out.println(request.getTitle());
+      //System.out.println(request.getTitle());
 
       Task savedTask = taskRepository.save(task);  //edited
  
-      System.out.println("Saved Task ID = " + savedTask.getId());
+      //System.out.println("Saved Task ID = " + savedTask.getId());
 
       return convertToResponse(savedTask);  //edited
      }
                          
                     //Get Task
     
-    public List<TaskResponse> getTasks(Long workspaceId,
+//    public List<TaskResponse> getTasks(Long workspaceId,
+//            UserDetails userDetails) {
+//
+//     User user = userRepository.findByEmail(userDetails.getUsername())
+//     .orElseThrow(() -> new RuntimeException("User not found"));
+//     //debug
+//     System.out.println("Logged User ID = " + user.getId());
+//
+//     ProductivityWorkspace workspace =
+//    		 productivityWorkspaceRepository.findById(workspaceId)
+//    .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
+//    //debug
+//    System.out.println("Workspace ID = " + workspace.getId());
+//    System.out.println("Workspace Owner = " + workspace.getUser().getId());
+//    if (!workspace.getUser().getId().equals(user.getId())) {
+//    throw new RuntimeException("You are not allowed to view these tasks");
+//    }
+//    
+//    //for now no need
+//   // resetDailyTasks(workspace);
+//    
+//    // for Debug
+//    List<Task> tasks = taskRepository.findByWorkspace(workspace);
+//
+//    System.out.println("===== TASKS FOUND =====");
+//    System.out.println("Count = " + tasks.size());
+//
+//    for (Task t : tasks) {
+//        System.out.println(
+//            "Task " + t.getId()
+//            + " | " + t.getTitle()
+//            + " | Workspace = " + t.getWorkspace().getId()
+//        );
+//    }
+//    
+//    return tasks.stream()
+//            .map(this::convertToResponse)
+//            .toList();
+//   }
+    
+    public List<TaskResponse> getTasks(
+            Long workspaceId,
             UserDetails userDetails) {
 
-     User user = userRepository.findByEmail(userDetails.getUsername())
-     .orElseThrow(() -> new RuntimeException("User not found"));
-     //debug
-     System.out.println("Logged User ID = " + user.getId());
+        long totalStart = System.currentTimeMillis();
 
-     ProductivityWorkspace workspace =
-    		 productivityWorkspaceRepository.findById(workspaceId)
-    .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
-    //debug
-    System.out.println("Workspace ID = " + workspace.getId());
-    System.out.println("Workspace Owner = " + workspace.getUser().getId());
-    if (!workspace.getUser().getId().equals(user.getId())) {
-    throw new RuntimeException("You are not allowed to view these tasks");
-    }
-    
-    //for now no need
-   // resetDailyTasks(workspace);
-    
-    // for Debug
-    List<Task> tasks = taskRepository.findByWorkspace(workspace);
 
-    System.out.println("===== TASKS FOUND =====");
-    System.out.println("Count = " + tasks.size());
+        // 1. GET CURRENT USER
 
-    for (Task t : tasks) {
-        System.out.println(
-            "Task " + t.getId()
-            + " | " + t.getTitle()
-            + " | Workspace = " + t.getWorkspace().getId()
+
+        long userStart = System.currentTimeMillis();
+
+        User user = userRepository
+                .findByEmail(userDetails.getUsername())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        log.info(
+                "PERFORMANCE TASKS (Siva) - Get user took {} ms",
+                System.currentTimeMillis() - userStart
         );
-    }
+
+
+        // 2. GET WORKSPACE
+       
+
+        long workspaceStart = System.currentTimeMillis();
+
+        ProductivityWorkspace workspace =
+                productivityWorkspaceRepository
+                        .findById(workspaceId)
+                        .orElseThrow(() ->
+                                new WorkspaceNotFoundException(
+                                        "Workspace not found"
+                                ));
+
+        log.info(
+                "PERFORMANCE TASKS - Get workspace took {} ms",
+                System.currentTimeMillis() - workspaceStart
+        );
+
+
+        // 3. AUTHORIZATION CHECK
     
-    return tasks.stream()
-            .map(this::convertToResponse)
-            .toList();
-   }
+
+        long authStart = System.currentTimeMillis();
+
+        if (!workspace.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException(
+                    "You are not allowed to view these tasks"
+            );
+        }
+
+        log.info(
+                "PERFORMANCE TASKS - Authorization check took {} ms",
+                System.currentTimeMillis() - authStart
+        );
+
+
+        // 4. GET TASKS
+    
+
+        long dbStart = System.currentTimeMillis();
+
+        List<Task> tasks =
+                taskRepository.findByWorkspace(workspace);
+
+        log.info(
+                "PERFORMANCE TASKS - DB findByWorkspace took {} ms - {} tasks returned",
+                System.currentTimeMillis() - dbStart,
+                tasks.size()
+        );
+
+
+        // 5. DTO MAPPING
+      
+
+        long mappingStart = System.currentTimeMillis();
+
+        List<TaskResponse> result =
+                tasks.stream()
+                        .map(this::convertToResponse)
+                        .toList();
+
+        log.info(
+                "PERFORMANCE TASKS - DTO mapping took {} ms",
+                System.currentTimeMillis() - mappingStart
+        );
+
+
+        // TOTAL
+      
+
+        log.info(
+                "PERFORMANCE TASKS - TOTAL getTasks() took {} ms",
+                System.currentTimeMillis() - totalStart
+        );
+
+        return result;
+    }
     
     public Task getTask(Long taskId,
             UserDetails userDetails) {
