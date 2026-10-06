@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 @Service
 public class StatisticsService {
 	
+	long serviceStart = System.currentTimeMillis();
+	
 	private static final Logger log =
 	        LoggerFactory.getLogger(StatisticsService.class);
 	
@@ -59,16 +61,28 @@ public class StatisticsService {
 
 //	    List<Task> tasks =
 //	            taskRepository.findByWorkspaceUser(user);
+//	    List<TaskCompletion> completions =
+//	            taskCompletionRepository.findAll()
+//	                    .stream()
+//	                    .filter(c ->
+//	                            c.getTask()
+//	                             .getWorkspace()
+//	                             .getUser()
+//	                             .getId()
+//	                             .equals(user.getId()))
+//	                    .toList();
+	    //06-10 
+	    long dbStart = System.currentTimeMillis();
+
 	    List<TaskCompletion> completions =
-	            taskCompletionRepository.findAll()
-	                    .stream()
-	                    .filter(c ->
-	                            c.getTask()
-	                             .getWorkspace()
-	                             .getUser()
-	                             .getId()
-	                             .equals(user.getId()))
-	                    .toList();
+	            taskCompletionRepository
+	                    .findByTask_Workspace_User_Id(user.getId());
+
+	    log.info(
+	            "PERFORMANCE STATISTICS - DB query took {} ms - {} records returned",
+	            System.currentTimeMillis() - dbStart,
+	            completions.size()
+	    );
 
 	    // Today Minutes
 	    int todayMinutes = completions.stream()
@@ -145,6 +159,11 @@ public class StatisticsService {
 
 	    response.setCurrentStreak(streak);
 	    
+	    //debug
+	    log.info(
+	            "PERFORMANCE STATISTICS - TOTAL getStatistics() took {} ms",
+	            System.currentTimeMillis() - serviceStart
+	    );
 	    
 	    return response;
 	}
