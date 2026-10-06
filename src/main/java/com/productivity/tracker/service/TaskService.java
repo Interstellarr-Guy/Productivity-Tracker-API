@@ -26,10 +26,16 @@ import com.productivity.tracker.entity.TaskCompletion;
 import com.productivity.tracker.entity.TaskStatus;
 import com.productivity.tracker.entity.User;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.productivity.tracker.exception.WorkspaceNotFoundException;
 
 @Service
 public class TaskService {
+	
+	private static final Logger log =
+	        LoggerFactory.getLogger(TaskService.class);
 
     @Autowired
     private TaskRepository taskRepository;
@@ -345,38 +351,98 @@ public class TaskService {
         
     }
     
-       // Get All Completions
+ // Get All Completions
     public List<TaskCompletionResponse> getAllCompletions(
             UserDetails userDetails
     ) {
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
+        long serviceStart = System.currentTimeMillis();
+
+
+        // GET CURRENT USER
+    
+
+        long userStart = System.currentTimeMillis();
+
+        User user = userRepository
+                .findByEmail(userDetails.getUsername())
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
-        return taskCompletionRepository.findAll()
-                .stream()
-                .filter(c ->
-                        c.getTask()
-                         .getWorkspace()
-                         .getUser()
-                         .getId()
-                         .equals(user.getId()))
-                .map(c -> {
+        log.info(
+                "PERFORMANCE COMPLETIONS - Get user took {} ms",
+                System.currentTimeMillis() - userStart
+        );
 
-                    TaskCompletionResponse dto =
-                            new TaskCompletionResponse();
 
-                    dto.setTaskId(c.getTask().getId());
-                    dto.setTaskTitle(c.getTask().getTitle());
-                    dto.setWorkedMinutes(c.getWorkedMinutes());
-                    dto.setCompletedDate(c.getCompletedDate());
 
-                    return dto;
+        // GET ONLY THIS USER'S COMPLETIONS
+   
 
-                })
-                .toList();
+        long dbStart = System.currentTimeMillis();
 
+        List<TaskCompletion> completions =
+                taskCompletionRepository
+                        .findByTask_Workspace_User_Id(
+                                user.getId()
+                        );
+
+        log.info(
+                "PERFORMANCE COMPLETIONS - DB query took {} ms - {} records returned",
+                System.currentTimeMillis() - dbStart,
+                completions.size()
+        );
+
+        // CONVERT TO DTO
+      
+
+        long mappingStart = System.currentTimeMillis();
+
+        List<TaskCompletionResponse> result =
+                completions.stream()
+                        .map(c -> {
+
+                            TaskCompletionResponse dto =
+                                    new TaskCompletionResponse();
+
+                            dto.setTaskId(
+                                    c.getTask().getId()
+                            );
+
+                            dto.setTaskTitle(
+                                    c.getTask().getTitle()
+                            );
+
+                            dto.setWorkedMinutes(
+                                    c.getWorkedMinutes()
+                            );
+
+                            dto.setCompletedDate(
+                                    c.getCompletedDate()
+                            );
+
+                            return dto;
+
+                        })
+                        .toList();
+
+
+        log.info(
+                "PERFORMANCE COMPLETIONS - DTO mapping took {} ms",
+                System.currentTimeMillis() - mappingStart
+        );
+
+
+        // TOTAL
+    
+
+        log.info(
+                "PERFORMANCE COMPLETIONS - TOTAL getAllCompletions() took {} ms",
+                System.currentTimeMillis() - serviceStart
+        );
+
+
+        return result;
     }
 
 
