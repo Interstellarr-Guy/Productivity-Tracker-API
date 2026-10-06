@@ -11,5 +11,10 @@ public interface ProductivityWorkspaceRepository
         extends JpaRepository<ProductivityWorkspace, Long> {
 
     Optional<ProductivityWorkspace> findByUser(User user);
+    
+    Optional<ProductivityWorkspace> findByIdAndUser_Id(
+            Long workspaceId,
+            Long userId
+    );
 
 }

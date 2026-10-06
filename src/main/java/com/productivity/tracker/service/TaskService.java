@@ -169,7 +169,10 @@ public class TaskService {
 
         ProductivityWorkspace workspace =
                 productivityWorkspaceRepository
-                        .findById(workspaceId)
+                        .findByIdAndUser_Id(
+                        workspaceId,
+                        user.getId()
+                )
                         .orElseThrow(() ->
                                 new WorkspaceNotFoundException(
                                         "Workspace not found"
