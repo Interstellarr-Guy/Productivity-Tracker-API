@@ -456,45 +456,133 @@ public class TaskService {
             UserDetails userDetails
     ) {
 
+        long totalStart = System.currentTimeMillis();
+
+
+        // 1. GET TASK
+      
+
+        long taskStart = System.currentTimeMillis();
+
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() ->
                         new RuntimeException("Task not found"));
 
-        User user = userRepository.findByEmail(userDetails.getUsername())
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Get task took {} ms",
+                System.currentTimeMillis() - taskStart
+        );
+
+
+   
+        // 2. GET USER
+
+        long userStart = System.currentTimeMillis();
+
+        User user = userRepository
+                .findByEmail(userDetails.getUsername())
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
 
-        if (!task.getWorkspace().getUser().getId().equals(user.getId())) {
-            throw new RuntimeException("You are not allowed to update this task");
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Get user took {} ms",
+                System.currentTimeMillis() - userStart
+        );
+
+
+        // 3. AUTHORIZATION
+
+
+        long authStart = System.currentTimeMillis();
+
+        if (!task.getWorkspace()
+                 .getUser()
+                 .getId()
+                 .equals(user.getId())) {
+
+            throw new RuntimeException(
+                    "You are not allowed to update this task"
+            );
         }
 
-     // Task completion...
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Authorization took {} ms",
+                System.currentTimeMillis() - authStart
+        );
+
+
+     
+        // 4. BUILD COMPLETION
+   
+        long buildStart = System.currentTimeMillis();
+
         TaskCompletion completion = new TaskCompletion();
 
         completion.setTask(task);
         completion.setWorkedMinutes(request.getWorkedMinutes());
         completion.setCompletedDate(request.getCompletedDate());
 
-        taskCompletionRepository.save(completion);
-
-     // always keep lifetime minutes updated
-        task.setWorkedMinutes(
-                task.getWorkedMinutes() + request.getWorkedMinutes()
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Build completion took {} ms",
+                System.currentTimeMillis() - buildStart
         );
 
-        // only NORMAL one-time tasks become DONE
+
+  
+        // 5. SAVE COMPLETION
+    
+        long completionSaveStart = System.currentTimeMillis();
+
+        taskCompletionRepository.save(completion);
+
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Save completion took {} ms",
+                System.currentTimeMillis() - completionSaveStart
+        );
+
+        // 6. UPDATE TASK
+
+        long updateStart = System.currentTimeMillis();
+
+        task.setWorkedMinutes(
+                task.getWorkedMinutes()
+                        + request.getWorkedMinutes()
+        );
+
         if (task.getRepeatType() == RepeatType.NONE) {
 
-            task.setCompletedDate(request.getCompletedDate());
-            task.setStatus(TaskStatus.DONE);
+            task.setCompletedDate(
+                    request.getCompletedDate()
+            );
 
+            task.setStatus(TaskStatus.DONE);
         }
 
-        // save changes
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Update entity took {} ms",
+                System.currentTimeMillis() - updateStart
+        );
+
+        // 7. SAVE TASK
+
+
+        long taskSaveStart = System.currentTimeMillis();
+
         taskRepository.save(task);
 
+        log.info(
+                "PERFORMANCE COMPLETE TASK - Save task took {} ms",
+                System.currentTimeMillis() - taskSaveStart
+        );
+
+
+        // TOTAL
        
-        System.out.println("===== RECORD COMPLETION =====");
+
+        log.info(
+                "PERFORMANCE COMPLETE TASK - TOTAL took {} ms",
+                System.currentTimeMillis() - totalStart
+        );
     }
     
     // Get completed Data
