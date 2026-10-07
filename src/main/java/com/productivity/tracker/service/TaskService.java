@@ -49,53 +49,141 @@ public class TaskService {
     @Autowired
     private  TaskCompletionRepository taskCompletionRepository;
     
-    public TaskResponse createTask(Long workspaceId, 
+    public TaskResponse createTask(
+            Long workspaceId,
             TaskRequest request,
             UserDetails userDetails) {
 
-       User user = userRepository.findByEmail(userDetails.getUsername())
-      .orElseThrow(() -> new RuntimeException("User not found"));
+        long totalStart = System.currentTimeMillis();
 
-       ProductivityWorkspace workspace =
-    		   productivityWorkspaceRepository.findById(workspaceId)
-      .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
 
-       if (!workspace.getUser().getId().equals(user.getId())) {
-       throw new RuntimeException("You are not allowed to add tasks to this workspace");
-      }
+        // 1. GET USER
 
-      Task task = new Task();
 
-      task.setTitle(request.getTitle());
-      task.setDescription(request.getDescription());
-      task.setStatus(request.getStatus());
-      task.setPriority(request.getPriority());
-      task.setDueDate(request.getDueDate());
-      task.setCreatedAt(LocalDateTime.now());
-      task.setWorkspace(workspace);
-      task.setRepeatType(request.getRepeatType());
+        long userStart = System.currentTimeMillis();
+
+        User user = userRepository
+                .findByEmail(userDetails.getUsername())
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        log.info(
+                "PERFORMANCE CREATE TASK - Get user took {} ms",
+                System.currentTimeMillis() - userStart
+        );
+
+
+   
+        // 2. GET + AUTHORIZE WORKSPACE
+
+        long workspaceStart = System.currentTimeMillis();
+
+        ProductivityWorkspace workspace =
+                productivityWorkspaceRepository
+                        .findByIdAndUser_Id(
+                                workspaceId,
+                                user.getId()
+                        )
+                        .orElseThrow(() ->
+                                new WorkspaceNotFoundException(
+                                        "Workspace not found or access denied"
+                                ));
+
+        log.info(
+                "PERFORMANCE CREATE TASK - Get authorized workspace took {} ms",
+                System.currentTimeMillis() - workspaceStart
+        );
+
+
+        // 3. BUILD TASK OBJECT
+
+        long buildStart = System.currentTimeMillis();
+
+        Task task = new Task();
+
+        task.setTitle(request.getTitle());
+        task.setDescription(request.getDescription());
+        task.setStatus(request.getStatus());
+        task.setPriority(request.getPriority());
+        task.setDueDate(request.getDueDate());
+        task.setCreatedAt(LocalDateTime.now());
+        task.setWorkspace(workspace);
+        task.setRepeatType(request.getRepeatType());
+
+        log.info(
+                "PERFORMANCE CREATE TASK - Build entity took {} ms",
+                System.currentTimeMillis() - buildStart
+        );
+
+        
+        // 4. SAVE TASK
       
+        long saveStart = System.currentTimeMillis();
 
-      // for debug
-//      Task saved = taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+
+        log.info(
+                "PERFORMANCE CREATE TASK - DB save took {} ms",
+                System.currentTimeMillis() - saveStart
+        );
+
+        // 5. DTO MAPPING
+
+
+        long mappingStart = System.currentTimeMillis();
+
+        TaskResponse response = convertToResponse(savedTask);
+
+        log.info(
+                "PERFORMANCE CREATE TASK - DTO mapping took {} ms",
+                System.currentTimeMillis() - mappingStart
+        );
+
+
+        // TOTAL
+        
+
+        log.info(
+                "PERFORMANCE CREATE TASK - TOTAL took {} ms",
+                System.currentTimeMillis() - totalStart
+        );
+
+        return response;
+    }
+    
+//    public TaskResponse createTask(Long workspaceId, 
+//            TaskRequest request,
+//            UserDetails userDetails) {
 //
-//      System.out.println("===== TASK SAVED =====");
-//      System.out.println("Task ID = " + saved.getId());
-//      System.out.println("Workspace ID = " + saved.getWorkspace().getId());
-//      System.out.println("Title = " + saved.getTitle());
+//       User user = userRepository.findByEmail(userDetails.getUsername())
+//      .orElseThrow(() -> new RuntimeException("User not found"));
 //
-//      return saved;
-      
-      //System.out.println("===== CREATE TASK =====");
-
-      //System.out.println(request.getTitle());
-
-      Task savedTask = taskRepository.save(task);  //edited
- 
-      //System.out.println("Saved Task ID = " + savedTask.getId());
-
-      return convertToResponse(savedTask);  //edited
-     }
+//       ProductivityWorkspace workspace =
+//    		   productivityWorkspaceRepository.findById(workspaceId)
+//      .orElseThrow(() -> new WorkspaceNotFoundException("Workspace not found"));
+//
+//       if (!workspace.getUser().getId().equals(user.getId())) {
+//       throw new RuntimeException("You are not allowed to add tasks to this workspace");
+//      }
+//
+//      Task task = new Task();
+//
+//      task.setTitle(request.getTitle());
+//      task.setDescription(request.getDescription());
+//      task.setStatus(request.getStatus());
+//      task.setPriority(request.getPriority());
+//      task.setDueDate(request.getDueDate());
+//      task.setCreatedAt(LocalDateTime.now());
+//      task.setWorkspace(workspace);
+//      task.setRepeatType(request.getRepeatType());
+//      
+//
+//      Task savedTask = taskRepository.save(task);  //edited
+// 
+//      return convertToResponse(savedTask);  //edited
+//     }
+    
+    
                          
                     //Get Task
     
