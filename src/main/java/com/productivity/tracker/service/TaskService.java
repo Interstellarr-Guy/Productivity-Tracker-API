@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.productivity.tracker.exception.WorkspaceNotFoundException;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TaskService {
@@ -48,6 +49,8 @@ public class TaskService {
     
     @Autowired
     private  TaskCompletionRepository taskCompletionRepository;
+    
+    
     
     public TaskResponse createTask(
             Long workspaceId,
@@ -450,6 +453,7 @@ public class TaskService {
     }
     
     //Record completion
+    @Transactional
     public void recordCompletion(
             Long taskId,
             TaskCompletionRequest request,
@@ -568,7 +572,7 @@ public class TaskService {
 
         long taskSaveStart = System.currentTimeMillis();
 
-        taskRepository.save(task);
+      //  taskRepository.save(task);
 
         log.info(
                 "PERFORMANCE COMPLETE TASK - Save task took {} ms",
