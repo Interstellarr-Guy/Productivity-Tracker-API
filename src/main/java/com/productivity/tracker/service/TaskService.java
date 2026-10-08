@@ -574,10 +574,10 @@ public class TaskService {
 
       //  taskRepository.save(task);
 
-        log.info(
-                "PERFORMANCE COMPLETE TASK - Save task took {} ms",
-                System.currentTimeMillis() - taskSaveStart
-        );
+//        log.info(
+//                "PERFORMANCE COMPLETE TASK - Save task took {} ms",
+//                System.currentTimeMillis() - taskSaveStart
+//        );
 
 
         // TOTAL
