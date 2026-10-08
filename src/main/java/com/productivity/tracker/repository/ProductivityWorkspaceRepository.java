@@ -16,5 +16,6 @@ public interface ProductivityWorkspaceRepository
             Long workspaceId,
             Long userId
     );
+    Optional<ProductivityWorkspace> findByUser_Email(String email);
 
 }

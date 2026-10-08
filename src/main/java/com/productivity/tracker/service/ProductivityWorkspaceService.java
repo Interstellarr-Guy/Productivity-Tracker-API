@@ -36,39 +36,20 @@ public class ProductivityWorkspaceService {
 
         long totalStart = System.currentTimeMillis();
 
-        // 1. GET USER
-      
+        String email = userDetails.getUsername();
 
-        long userStart = System.currentTimeMillis();
-
-        User user = userRepository
-                .findByEmail(userDetails.getUsername())
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
-
-        log.info(
-                "PERFORMANCE WORKSPACE - Get user took {} ms",
-                System.currentTimeMillis() - userStart
-        );
-
-
-        // 2. FIND EXISTING WORKSPACE
-      
-
+        // 1. FIND WORKSPACE DIRECTLY
         long workspaceStart = System.currentTimeMillis();
 
         Optional<ProductivityWorkspace> existingWorkspace =
-                workspaceRepository.findByUser(user);
+                workspaceRepository.findByUser_Email(email);
 
         log.info(
-                "PERFORMANCE WORKSPACE - Find workspace took {} ms",
+                "PERFORMANCE WORKSPACE - Direct workspace query took {} ms",
                 System.currentTimeMillis() - workspaceStart
         );
 
-
-        // 3. RETURN EXISTING WORKSPACE
- 
-
+        // 2. RETURN IF FOUND
         if (existingWorkspace.isPresent()) {
 
             log.info(
@@ -79,10 +60,20 @@ public class ProductivityWorkspaceService {
             return existingWorkspace.get();
         }
 
+        // 3. GET USER ONLY IF WORKSPACE IS MISSING
+        long userStart = System.currentTimeMillis();
 
-        // 4. CREATE WORKSPACE IF MISSING
-       
+        User user = userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
 
+        log.info(
+                "PERFORMANCE WORKSPACE - Get user for creation took {} ms",
+                System.currentTimeMillis() - userStart
+        );
+
+        // 4. CREATE WORKSPACE
         ProductivityWorkspace workspace =
                 new ProductivityWorkspace();
 
@@ -106,6 +97,82 @@ public class ProductivityWorkspaceService {
 
         return savedWorkspace;
     }
+    
+//    public ProductivityWorkspace getOrCreateWorkspace(
+//            UserDetails userDetails) {
+//
+//        long totalStart = System.currentTimeMillis();
+//
+//        // 1. GET USER
+//      
+//
+//        long userStart = System.currentTimeMillis();
+//
+//        User user = userRepository
+//                .findByEmail(userDetails.getUsername())
+//                .orElseThrow(() ->
+//                        new RuntimeException("User not found"));
+//
+//        log.info(
+//                "PERFORMANCE WORKSPACE - Get user took {} ms",
+//                System.currentTimeMillis() - userStart
+//        );
+//
+//
+//        // 2. FIND EXISTING WORKSPACE
+//      
+//
+//        long workspaceStart = System.currentTimeMillis();
+//
+//        Optional<ProductivityWorkspace> existingWorkspace =
+//                workspaceRepository.findByUser(user);
+//
+//        log.info(
+//                "PERFORMANCE WORKSPACE - Find workspace took {} ms",
+//                System.currentTimeMillis() - workspaceStart
+//        );
+//
+//
+//        // 3. RETURN EXISTING WORKSPACE
+// 
+//
+//        if (existingWorkspace.isPresent()) {
+//
+//            log.info(
+//                    "PERFORMANCE WORKSPACE - TOTAL took {} ms",
+//                    System.currentTimeMillis() - totalStart
+//            );
+//
+//            return existingWorkspace.get();
+//        }
+//
+//
+//        // 4. CREATE WORKSPACE IF MISSING
+//       
+//
+//        ProductivityWorkspace workspace =
+//                new ProductivityWorkspace();
+//
+//        workspace.setUser(user);
+//        workspace.setProductivityData("{}");
+//
+//        long saveStart = System.currentTimeMillis();
+//
+//        ProductivityWorkspace savedWorkspace =
+//                workspaceRepository.save(workspace);
+//
+//        log.info(
+//                "PERFORMANCE WORKSPACE - Create workspace took {} ms",
+//                System.currentTimeMillis() - saveStart
+//        );
+//
+//        log.info(
+//                "PERFORMANCE WORKSPACE - TOTAL took {} ms",
+//                System.currentTimeMillis() - totalStart
+//        );
+//
+//        return savedWorkspace;
+//    }
 //    public ProductivityWorkspace getOrCreateWorkspace(UserDetails userDetails) {
 //
 //        User user = userRepository
